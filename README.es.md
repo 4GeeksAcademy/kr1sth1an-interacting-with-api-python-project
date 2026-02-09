@@ -2,9 +2,8 @@
 # Integración de una API en Python - Guía paso a paso
 <!-- endhide -->
 
-- Crea una aplicación para desarrolladores de Spotify mediante el portal para desarrolladores.
-- Conéctate con la API de Spotify.
-- Recupera y descarga datos de la API de Spotify.
+- Conéctate con la API de World Bank.
+- Recupera y descarga datos de la API.
 - Crea un marco de datos de Python Pandas para facilitar la manipulación de los datos.
 - Guarda los datos en una base de datos SQL.
 
@@ -27,9 +26,6 @@ Sigue las siguientes instrucciones:
 
 
     ![image-devcontainer](https://github.com/4GeeksAcademy/probability-exercises-project-in-python/blob/main/assets/devcontainer-image.png?raw=true)
-    
-3. **Transfiere el código limpio a `./src/app.py`** una vez que hayas terminado las pruebas.  
-4. **Elimina `./src/explore.ipynb`** después de asegurarte de que ya no lo necesitas. Esto mantendrá el proyecto limpio y organizado.  
 
 ¡Sigue estos pasos y avanza con el proyecto de manera estructurada! 🚀
 

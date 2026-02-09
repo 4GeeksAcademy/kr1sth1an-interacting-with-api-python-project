@@ -1,137 +1,128 @@
-# Interacting with Spotify's API
+# Interacting with the World Bank v2 API
 
-Spotify can be used as a data source for various data science projects. In this exercise, we will learn how to interact with the API of this social network. `Spotipy` is an open-source and Python library that allows high-level use of the Spotify API.
+In this project, you will build a complete data workflow: API consumption, DataFrame transformation, visual analysis, and SQL database loading.
 
-## Step 1: Create a Spotify Developer Account
+## Exercise Context
 
-Before starting to code, you need access to Spotify developer credentials. Visit [developer.spotify.com](https://developer.spotify.com/documentation/web-api).
+You will work with the public World Bank v2 API (no authentication required). The goal is to analyze the socioeconomic and environmental evolution of 5 countries chosen by you between 2010 and 2024.
 
-- Log in with your Spotify account (or create one if you don't have one yet).
+### Dataset Selection
 
-- Go to the Dashboard and click on Create an App. Fill in the required fields. In Redirect URI, enter: `http://localhost/`
+1. Choose 5 countries (ISO3) that interest you.
+2. Choose the indicators you want to analyze.
+3. Suggested indicators (optional):
 
-![Spotify create app](https://github.com/4GeeksAcademy/interacting-with-api-python-project-tutorial/blob/main/assets/spotify_1.PNG?raw=true)
+- `SP.POP.TOTL`: Total population
+- `NY.GDP.PCAP.CD`: GDP per capita (current USD)
+- `EN.ATM.CO2E.PC`: CO2 emissions per capita (metric tons)
+- `SP.DYN.LE00.IN`: Life expectancy at birth (years)
 
-Once the app is created, go to the **Settings** section to copy your `Client ID` and `Client Secret`. You will use them later to authenticate with the API.
+Base API URL: `https://api.worldbank.org/v2`
 
-## Step 2: Initial Setup
+## Technical Requirements
 
-- Open the terminal and ensure you have the `Spotipy` library installed, as it will be used to connect to the Spotify API:
+You must work in a `.ipynb` file and use:
 
-    ```bash
-    pip install spotipy
-    ```
+- `requests`
+- `pandas`
+- `matplotlib` and/or `seaborn`
+- `sqlalchemy`
 
-## Step 3: Environment Variables
+## Step 1: Prepare the environment
 
-You already have the `.env` file in the root of the project. Make sure it contains the following variables with your Spotify credentials (replace the content with your own data):
+Install dependencies:
 
-```env
-CLIENT_ID=your_client_id
-CLIENT_SECRET=your_client_secret
+```bash
+pip install requests pandas matplotlib seaborn sqlalchemy
 ```
 
-> ⚠️ It is important to place your data in environment variables to avoid exposing your credentials if you upload the project to a repository.
+Create a notebook, for example: `src/world_bank_analysis.ipynb`.
 
-Now, in the `app.py` file, add the following code to read the environment variables:
+## Step 2: Explore the API
+
+Review these reference endpoints:
+
+- Countries: `https://api.worldbank.org/v2/country`
+- Indicators: `https://api.worldbank.org/v2/indicator`
+
+Check the response structure. The API paginates results (usually up to `per_page=50`), so you should plan a strategy to loop through pages and store all the information you need.
+
+Example request in Python (template):
 
 ```python
-import os
-import pandas as pd
-import seaborn as sns
-from dotenv import load_dotenv
+import requests
 
-# load the .env file variables
-load_dotenv()
+url = "https://api.worldbank.org/v2/country"
+params = {
+    "format": "json",
+    "per_page": 50,
+    "page": 1
+}
 
-# Get credential values
-client_id = os.environ.get("CLIENT_ID")
-client_secret = os.environ.get("CLIENT_SECRET")
+response = requests.get(url, params=params, timeout=30)
+response.raise_for_status()
+payload = response.json()
+
+# payload[0] -> pagination metadata
+# payload[1] -> current page data
+print("Metadata:", payload[0])
+print("First item:", payload[1][0])
 ```
 
-With this, your credentials will be ready to use for authentication with the Spotify API.
+*IMPORTANT:* The code above is only a guide. In the link below you can find all the information needed to make API calls:
 
-## Step 4: Initialize the Spotipy Library
+https://datahelpdesk.worldbank.org/knowledgebase/articles/898581
 
-- Import Spotipy.
-- Connect to the API. To do this, you can use the `spotipy.Spotify()` function.
+## Step 3: Download data
 
-    ```python
-    import spotipy
-    from spotipy.oauth2 import SpotifyClientCredentials
+Download 2010-2024 time series for the countries and indicators you selected.
 
-    auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
-    spotify = spotipy.Spotify(auth_manager=auth_manager)
-    ```
+Goal:
 
-    > 💡 NOTE: Use the following documentation as a guide for the parameters: https://spotipy.readthedocs.io/en/2.22.1
+- Consume the API for multiple countries and indicators
+- Handle pagination when needed
+- Store responses in a temporary structure (list of dictionaries)
 
-## Step 5: Make API Requests
+## Step 4: Transform responses into DataFrames
 
-- Start interacting with the Spotify API: Get the top 10 songs of your favorite artist. To do this, you will need to find the artist's `ID` to use it with the library. This identifier is the web address of the artist on Spotify:
+Create one table (DataFrame) per indicator to make country comparisons easier.
 
-![Find the artist's identifier on Spotify](https://github.com/4GeeksAcademy/interacting-with-api-python-project-tutorial/blob/main/assets/spotify_2.png?raw=true)
+Suggested columns for each table:
 
-- Once you have the API response, focus on the `tracks` element, which will contain the most played songs of the artist. Extract the song name, popularity, and duration (in minutes).
+- `country`
+- `year`
+- `value`
 
-> ⚠️ **NOTE** about possible messages when running the code. You might encounter a message like the following after executing the script:
+Minimum cleaning:
 
-```
- Exception ignored in: <function Spotify.__del__ ...>
- TypeError: isinstance() arg 2 must be a type, a tuple of types, or a union
-```
+- Remove rows with null `value` when needed
+- Convert `year` to integer
+- Convert `value` to numeric
 
-This message originates from the `spotipy` library and **does not affect the functionality of your code or the API results**. You can safely ignore it; it is an internal object cleanup detail (**garbage collection**) that does not interrupt your analysis.
+## Step 5: Analysis and visualizations
 
-## Step 6: Transform to Pandas DataFrame
+Create at least 2 charts and explain findings in Markdown cells.
 
-Since the result obtained in these steps is likely to be in table format, convert it to a DataFrame by importing the data in its dictionary format. Next, sort the songs by increasing popularity and display the resulting top 3.
+Examples:
 
-## Step 7: Analyze statistical relationship
+1. Line chart: evolution of one indicator by country (2010-2024)
+2. Scatter plot: relationship between two indicators for a recent year
 
-Does duration have a relationship with popularity? Could we say that a song that lasts a short time may be more popular than a song that lasts longer? Analyze it by plotting a `scatter plot` and argue your answer.
+## Step 6: Load results into an SQL database
 
+Use SQLite with SQLAlchemy to persist data:
 
-## Feeling like diving deeper? 😎  
-**Advanced Exploration of Musical Attributes - Extended Analysis with Interpretative Focus**
+- Database: `world_bank_analysis.db`
+- Teaching recommendation: one table per indicator (example: `indicator_gdp_per_capita`, `indicator_life_expectancy`, etc.)
 
-If you've already managed to connect to the Spotify API, extract information about your favorite artist, and represent basic data like popularity and duration, we invite you to take on this extended version of the project. This optional activity will allow you to incorporate new musical variables, apply analytical thinking, and write clear and well-supported conclusions based on the data.
+Recommended flow:
 
----
+1. Create an engine with SQLAlchemy
+2. Save each DataFrame with `to_sql(..., if_exists="replace")`
+3. Read a sample with `pd.read_sql()` to validate the load
 
-### Proposal 🚀  
-Take advantage of your access to the artist's data to deepen the analysis by including new metrics offered by the API. The goal is to detect interesting patterns or characteristics and express them in a way that is understandable to any reader.
+## Closing
 
-#### Recommended variables to explore:
-
-- **Danceability**: How easy it is to dance to the song.
-- **Valence**: How positive or happy it sounds.
-- **Energy**: Overall intensity or strength.
-- **Tempo**: Speed (in BPM).
-
----
-
-1. **Retrieve additional attributes:** Use the `audio_features()` method to obtain the musical attributes of the artist's songs:
-
-    ```python
-    track_ids = [track["id"] for track in results["tracks"]]
-    features = sp.audio_features(track_ids)
-    ```
-
-2. **Create a new DataFrame with complete information:** Combine the previously obtained data (`name, popularity, duration`) with the new metrics.
-
-3. **Perform a simple analysis:** Explore average values, look for extremes, identify visual or statistical correlations.
-
-    - What values stand out for this artist?
-
-    - Is there any trend between popularity and another attribute?
-
-    - Is there something unexpected you found?
-
-    Create a simple chart to complement your conclusion.
-
-4. **Make your work visible:** Based on the analysis, write one or two sentences summarizing what you discovered and post it on LinkedIn. The goal is to communicate your findings objectively, briefly, and with data-backed evidence.
-
-    > **Example:**
-    >
-    > "The most popular songs of the analyzed artist have an average “danceability” level of > 0.82, suggesting a clear focus on danceable tracks. 🕺💃 #SpotifySecrets"
+You already have everything you need to start!
+Take your time exploring the API documentation and understanding the response structure.
+If you have any questions during the process, contact your mentors.

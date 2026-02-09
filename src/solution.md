@@ -1,131 +1,186 @@
-# Interacting with the Spotify API
+# Solution: Interacting with the World Bank v2 API
 
-Spotify can be used as a data source for various data science projects. In this exercise, we will learn how to interact with the API of this social network. `Spotipy` is an open-source Python library that allows high-level use of the Spotify API.
+This is one valid solution aligned with `INSTRUCTIONS.md`.  
+In this example we use:
 
-## Step 1: Create a Spotify Developer Account
+- Countries: `ARG`, `BRA`, `CHL`, `COL`, `MEX`
+- Indicators:
+  - `NY.GDP.PCAP.CD` (GDP per capita)
+  - `SP.DYN.LE00.IN` (Life expectancy)
+  - `EN.ATM.CO2E.PC` (CO2 per capita)
 
-Before starting to code, you need access to Spotify developer credentials. Visit [developer.spotify.com](https://developer.spotify.com/documentation/web-api).
+You can run this flow in a notebook such as `src/world_bank_analysis.ipynb`.
 
-- Log in with your Spotify account (or create one if you don't have one yet).
-
-- Go to the Dashboard and click on Create an App. Fill in the required fields. In Redirect URI, enter: `http://localhost/`
-
-![Spotify create app](https://github.com/4GeeksAcademy/interacting-with-api-python-project-tutorial/blob/main/assets/spotify_1.PNG?raw=true)
-
-Once the app is created, go to the **Settings** section to copy your `Client ID` and `Client Secret`. You will use them later to authenticate with the API.
-
-## Step 2: Initial configuration
-
-- Create an `app.py` file inside the `./src/` folder.
-- Install all the requirements from the `requirements.txt` file or just the required library.
+## 1. Imports and setup
 
 ```python
-! pip install spotipy
-```
-
-    Collecting spotipy
-      Downloading spotipy-2.23.0-py3-none-any.whl (29 kB)
-    Collecting redis>=3.5.3 (from spotipy)
-      Downloading redis-4.6.0-py3-none-any.whl (241 kB)
-        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 241.1/241.1 kB 11.2 MB/s eta 0:00:00
-    Requirement already satisfied: requests>=2.25.0 in /usr/local/python/3.10.8/lib/python3.10/site-packages (from spotipy) (2.27.1)
-    Requirement already satisfied: six>=1.15.0 in /home/codespace/.local/lib/python3.10/site-packages (from spotipy) (1.16.0)
-    Requirement already satisfied: urllib3>=1.26.0 in /usr/local/python/3.10.8/lib/python3.10/site-packages (from spotipy) (1.26.16)
-    Collecting async-timeout>=4.0.2 (from redis>=3.5.3->spotipy)
-      Downloading async_timeout-4.0.2-py3-none-any.whl (5.8 kB)
-    Requirement already satisfied: certifi>=2017.4.17 in /home/codespace/.local/lib/python3.10/site-packages (from requests>=2.25.0->spotipy) (2023.5.7)
-    Requirement already satisfied: charset-normalizer~=2.0.0 in /usr/local/python/3.10.8/lib/python3.10/site-packages (from requests>=2.25.0->spotipy) (2.0.12)
-    Requirement already satisfied: idna<4,>=2.5 in /home/codespace/.local/lib/python3.10/site-packages (from requests>=2.25.0->spotipy) (3.4)
-    Installing collected packages: async-timeout, redis, spotipy
-    Successfully installed async-timeout-4.0.2 redis-4.6.0 spotipy-2.23.0
-
-## Step 3: Environment variables
-
-You already have the `.env` file in the root of the project. Make sure it contains the following variables with your Spotify credentials (replace the content with your own data):
-
-```env
-CLIENT_ID=your_client_id
-CLIENT_SECRET=your_client_secret
-```
-
-> ⚠️ It is important to place your data in environment variables to avoid exposing your credentials if you upload the project to a repository.
-
-Now, in the `app.py` file, add the following code to read the environment variables:
-
-```python
-import os
+import requests
 import pandas as pd
 import matplotlib.pyplot as plt
-from dotenv import load_dotenv
+import seaborn as sns
+from sqlalchemy import create_engine
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-# load the .env file variables
-load_dotenv()
+sns.set_theme(style="whitegrid")
+BASE_URL = "https://api.worldbank.org/v2"
+TIMEOUT = 60
 
-# Get credential values
-client_id = os.environ.get("CLIENT_ID")
-client_secret = os.environ.get("CLIENT_SECRET")
+# Session with retry strategy to reduce transient timeout failures
+session = requests.Session()
+retry = Retry(
+    total=5,
+    connect=5,
+    read=5,
+    backoff_factor=1,
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["GET"],
+)
+session.mount("https://", HTTPAdapter(max_retries=retry))
+session.mount("http://", HTTPAdapter(max_retries=retry))
 ```
 
-With this, your credentials will be ready to use for authentication with the Spotify API.
+## 2. Explore API (example request)
 
-## Step 4: Initialize Spotipy library
+```python
+url = f"{BASE_URL}/country"
+params = {
+    "format": "json",
+    "per_page": 50,
+    "page": 1
+}
 
+response = session.get(url, params=params, timeout=TIMEOUT)
+response.raise_for_status()
+payload = response.json()
 
-- Import Spotipy.
-- Connect to the API. To do this, you can use the `spotipy.Spotify()` function.
-
-    ```python
-    import spotipy
-    from spotipy.oauth2 import SpotifyClientCredentials
-
-    auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
-    spotify = spotipy.Spotify(auth_manager=auth_manager)
-    ```
-
-    > 💡 NOTE: Use the following documentation as a guide for the parameters: https://spotipy.readthedocs.io/en/2.22.1
-
-## Step 5: Make API requests
-
-In this case, I have chosen Drake. First, I get his ID by searching for his Spotify page and getting it from the URI. Now, I perform the search for his top 10 songs.
-
-```py
-artist_id = "3TVXtAsR1Inumwj472S9r4"
-
-# Get the top tracks of an artist
-results = spotify.artist_top_tracks(artist_id)
-
-songs = []
-for track in results['tracks']:
-    songs.append({
-        'name': track['name'],
-        'popularity': track['popularity'],
-        'duration_min': track['duration_ms'] / 60000
-    })
+print("Pagination metadata:", payload[0])
+print("First country record:", payload[1][0])
 ```
 
-## Step 6: Transform to Pandas DataFrame
+## 3. Download data with pagination
 
-Once we have modified the answer, we create the Pandas DataFrame from it:
+```python
+countries = ["ARG", "BRA", "CHL", "COL", "MEX"]
+indicators = {
+    "NY.GDP.PCAP.CD": "gdp_per_capita",
+    "SP.DYN.LE00.IN": "life_expectancy",
+    "EN.ATM.CO2E.PC": "co2_per_capita",
+}
 
-```py
+def fetch_indicator_data(country_codes, indicator_id, start_year=2010, end_year=2024):
+    country_path = ";".join(country_codes)
+    endpoint = f"{BASE_URL}/country/{country_path}/indicator/{indicator_id}"
+    page = 1
+    all_rows = []
 
-tracks_df = pd.DataFrame(songs)
+    while True:
+        params = {
+            "format": "json",
+            "date": f"{start_year}:{end_year}",
+            "per_page": 50,
+            "page": page
+        }
+        response = session.get(endpoint, params=params, timeout=TIMEOUT)
+        response.raise_for_status()
+        payload = response.json()
 
-print(tracks_df.head(3))
+        if not isinstance(payload, list) or len(payload) == 0:
+            raise ValueError(f"Unexpected API response for {indicator_id}: {payload}")
+
+        metadata = payload[0]
+        rows = payload[1] if len(payload) > 1 and payload[1] is not None else []
+        all_rows.extend(rows)
+
+        total_pages = int(metadata.get("pages", 1))
+        if page >= total_pages:
+            break
+        page += 1
+
+    return all_rows
 ```
 
-## Step 7: Analyze statistical relationship
+## 4. Build one DataFrame per indicator
 
-A scatter plot is a good alternative to determine visually and graphically whether two variables may or may not be related to each other:
+```python
+tables = {}
 
-```py
-plt.scatter(df['duration_min'], df['popularity'])
-plt.xlabel('Duration (minutes)')
-plt.ylabel('Popularity')
-plt.title('Relationship between duration and popularity')
+for indicator_id, table_name in indicators.items():
+    raw_rows = fetch_indicator_data(countries, indicator_id, 2010, 2024)
+
+    records = []
+    for row in raw_rows:
+        records.append({
+            "country": row["country"]["value"],
+            "year": row["date"],
+            "value": row["value"],
+        })
+
+    df = pd.DataFrame(records)
+    df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    df = df.dropna(subset=["value", "year"]).copy()
+    df["year"] = df["year"].astype(int)
+    df = df.sort_values(["country", "year"]).reset_index(drop=True)
+
+    tables[table_name] = df
+
+tables["gdp_per_capita"].head()
+```
+
+## 5. Visualizations (2 examples)
+
+### Example 1: Line chart (GDP per capita by country)
+
+```python
+plt.figure(figsize=(12, 6))
+sns.lineplot(data=tables["gdp_per_capita"], x="year", y="value", hue="country", marker="o")
+plt.title("GDP per capita (2010-2024)")
+plt.xlabel("Year")
+plt.ylabel("Current USD")
+plt.legend(title="Country", bbox_to_anchor=(1.02, 1), loc="upper left")
+plt.tight_layout()
 plt.show()
 ```
 
-![Scatter plot of popularity and duration of songs](https://github.com/4GeeksAcademy/interacting-with-the-twitter-api-project-tutorial/blob/main/assets/scatter_plot.png?raw=true)
+### Example 2: Scatter plot (GDP per capita vs CO2 per capita)
 
-As can be seen, there is no direct relationship between the length of the song and its popularity.
+```python
+latest_year = 2022
+
+gdp_latest = tables["gdp_per_capita"].query("year == @latest_year").rename(columns={"value": "gdp_per_capita"})
+co2_latest = tables["co2_per_capita"].query("year == @latest_year").rename(columns={"value": "co2_per_capita"})
+
+merged = pd.merge(
+    gdp_latest[["country", "gdp_per_capita"]],
+    co2_latest[["country", "co2_per_capita"]],
+    on="country",
+    how="inner"
+)
+
+plt.figure(figsize=(8, 6))
+sns.scatterplot(data=merged, x="gdp_per_capita", y="co2_per_capita", hue="country", s=120)
+plt.title(f"GDP per capita vs CO2 per capita ({latest_year})")
+plt.xlabel("GDP per capita (current USD)")
+plt.ylabel("CO2 per capita (metric tons)")
+plt.tight_layout()
+plt.show()
+```
+
+## 6. Save to SQL (one table per indicator)
+
+```python
+engine = create_engine("sqlite:///world_bank_analysis.db")
+
+for table_name, df in tables.items():
+    sql_table_name = f"indicator_{table_name}"
+    df.to_sql(sql_table_name, engine, if_exists="replace", index=False)
+
+# Validation example
+pd.read_sql("SELECT * FROM indicator_gdp_per_capita LIMIT 5", engine)
+```
+
+## 7. Suggested markdown conclusions (example)
+
+- GDP per capita shows different growth paths across countries, with clear gaps in income levels.
+- Countries with higher GDP per capita tend to have higher CO2 emissions per capita in the selected year, although the relationship is not perfectly linear.

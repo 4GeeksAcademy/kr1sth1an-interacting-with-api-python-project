@@ -2,9 +2,8 @@
 # Interacting with an API in Python - Step by step guide
 <!-- endhide -->
 
-+ Create a Spotify developer application using the Spotify Developer Portal.
-+ Connect with the Spotify API.
-+ Retrieve and download data from the Spotify API.
++ Connect with the World Bank API.
++ Retrieve and download data from the API.
 + Create a Python Pandas dataframe for easier manipulation of the data.
 + Save the data to an SQL database.
  
@@ -28,9 +27,6 @@ Follow the instructions below:
 
     ![image-devcontainer](https://github.com/4GeeksAcademy/probability-exercises-project-in-python/blob/main/assets/devcontainer-image.png?raw=true)
     
-3. **Transfer the clean code to `./src/app.py`** once you have finished testing.  
-4. **Delete `./src/explore.ipynb`** after ensuring you no longer need it. This will keep the project clean and organized.  
-
 Follow these steps and proceed with the project in a structured manner! 🚀
 
 > Note: We also incorporated the solution samples on ./src/solution.ipynb that we strongly suggest you only use if you are stuck for more than 30 min or if you have already finished and want to compare it with your approach.
